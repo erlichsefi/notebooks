@@ -1,7 +1,9 @@
+import json
+
 def forecast(interest_over_time_df, kw, number_of_dates_to_comapre):
     import pandas as pd
     from prophet import Prophet
-
+    from prophet.plot import add_changepoints_to_plot
     import logging
 
     logger = logging.getLogger("cmdstanpy")
@@ -30,7 +32,8 @@ def forecast(interest_over_time_df, kw, number_of_dates_to_comapre):
 
     # Create a dataframe for future dates you want to forecast
     future_dates = model.make_future_dataframe(
-        periods=number_of_dates_to_comapre, freq="W"
+        periods=number_of_dates_to_comapre + 4, freq="W",
+        #include_history=False
     )  # Forecasting for 365 days
 
     # Perform the forecast
@@ -38,31 +41,40 @@ def forecast(interest_over_time_df, kw, number_of_dates_to_comapre):
 
     # Visualize the forecast
     fig = model.plot(forecast)
+    add_changepoints_to_plot(fig.gca(), model, forecast)
 
     return (
-        fig,
-        forecast.iloc[-number_of_dates_to_comapre][
-            ["trend", "trend_lower", "yhat_upper", "yhat", "yhat_lower", "yhat_upper"]
-        ].to_dict(),
+        fig,        forecast
     )
 
+def get_filename(segment_params):
+    file_name_parts = []
+    for key, value in segment_params.items():
+        file_name_parts.append(f"{key}_{value}")
+
+    return "_".join(file_name_parts) + "_data.csv"
 
 def get_trend_data(kw, date_start, date_end, country, number_of_dates_to_comapre):
     from pytrends.request import TrendReq
 
-    # Login to Google. Only need to run this once, the rest of requests will use the same session.
-    pytrend = TrendReq(geo=country)  # , retries=3, backoff_factor=2)
+    segment_params = {"geo":country}
+
+
+    pytrend = TrendReq(**segment_params)
 
     # Build the payload
-    kw_list = [kw]
-    timeframe = f"{date_start} {date_end}"
-    pytrend.build_payload(kw_list, timeframe=timeframe)
+    timeframe = f"{date_start.strftime('%Y-%m-%d')} {date_end.strftime('%Y-%m-%d')}"
+    pytrend.build_payload(kw_list=[kw], timeframe=timeframe)
 
     # Interest Over Time
     interest_over_time_df = pytrend.interest_over_time()
-
     if interest_over_time_df.shape[0] == 0:
         raise ValueError("trend api, return no data.")
+    
+    # Remove partial
+    if interest_over_time_df.iloc[-1].isPartial:
+        interest_over_time_df = interest_over_time_df.iloc[:-1]
+
     return (
         interest_over_time_df.iloc[:-number_of_dates_to_comapre],
         interest_over_time_df.iloc[-number_of_dates_to_comapre:],
@@ -96,6 +108,7 @@ def get_trend_data_with_retry(
 def get_trend_and_forecast(
     kw, date_start, date_end, country, number_of_dates_to_comapre=1
 ):
+    import os
     interest_over_time_df, interest_over_time_df_lastest = get_trend_data_with_retry(
         kw, date_start, date_end, country, number_of_dates_to_comapre
     )
@@ -103,9 +116,32 @@ def get_trend_and_forecast(
         interest_over_time_df, kw, number_of_dates_to_comapre
     )
 
+    fig.savefig("temp.png")
+    prompt = """
+    Given an image of a time series plot displaying historical data along with forecasted values, please provide as much insightful information as possible based on the trends, patterns, and characteristics observed in the data. 
+    Response should be in the following format:
+    {
+        "analysis": {
+            "trends": "Identify any overarching trends in the historical data and forecasted values. Discuss whether these trends are linear, exponential, cyclic, or irregular.",
+            "seasonality_cyclical_patterns": "Determine if there are any seasonal or cyclical patterns present in the data. Describe the frequency and magnitude of these patterns, and discuss how they might impact future forecasts.",
+            "anomalies_outliers": "Identify any outliers or anomalies in the data. Discuss potential causes for these deviations and whether they are likely to recur in future data.",
+            "forecast_accuracy": "Evaluate the accuracy of the forecasted values compared to the actual historical data. Discuss any discrepancies and potential reasons for forecast errors.",
+            "factors_influencing_trends": "Consider external factors that may influence the observed trends and forecasted values. These factors could include economic conditions, policy changes, or shifts in consumer behavior.",
+            "recommendations_insights": "Based on your analysis, provide recommendations or insights for stakeholders. This could include suggestions for adjusting forecasting models, strategies for mitigating risks, or opportunities for capitalizing on emerging trends."
+        }
+    }
+    """
+    vision_response = call_open_ai_vision(prompt,"temp.png")
+    os.remove("temp.png")
+
+            
+    
+    forecast_values = forecast_result[forecast_result.ds.isin(interest_over_time_df_lastest.index.values)][["trend", "trend_lower", "yhat_upper", "yhat", "yhat_lower", "yhat_upper"]].iloc[0].to_dict()
+
     return fig, {
         "execution_status": True,
-        **forecast_result,
+        "llm_vision_insight":json.loads(vision_response.replace("```json","").replace("```","")),
+        "forecasting_algorithm":forecast_values,
         "actual": interest_over_time_df_lastest[kw].values[0],
     }
 
@@ -123,6 +159,49 @@ def call_open_ai(prompt):
     return stream.choices[0].message.content
 
 
+def call_open_ai_vision(prompt,image_path):
+    import base64
+    import requests
+    import os
+
+    # Function to encode the image
+    def encode_image(image_path):
+        with open(image_path, "rb") as image_file:
+            return base64.b64encode(image_file.read()).decode('utf-8')
+
+    # Getting the base64 string
+    base64_image = encode_image(image_path)
+
+    headers = {
+    "Content-Type": "application/json",
+    "Authorization": f"Bearer {os.environ['OPENAI_API_KEY']}"
+    }
+
+    payload = {
+    "model": "gpt-4-vision-preview",
+    "messages": [
+        {
+        "role": "user",
+        "content": [
+            {
+            "type": "text",
+            "text": prompt
+            },
+            {
+            "type": "image_url",
+            "image_url": {
+                "url": f"data:image/jpeg;base64,{base64_image}"
+            }
+            }
+        ]
+        }
+    ]
+    }
+
+    response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload)
+
+    return response.json()['choices'][0]['message']['content']
+
 def ask_to_rephrase(kw, objective):
     prompt = f"""
     You are trying to find keyword that was searched in google that indicate if '{objective}' will take place, however the google search on this term '{kw}' results without any value.
@@ -135,7 +214,6 @@ def ask_to_rephrase(kw, objective):
 """
     result = call_open_ai(prompt)
 
-    import json
 
     return json.loads(result)["new_search_term"]
 
@@ -155,7 +233,7 @@ def get_trend_and_forecast_with_retry(
                 number_of_dates_to_comapre=number_of_dates_to_comapre,
             )
             return fig, {**params, "search_term": kw}
-        except ValueError:
+        except ValueError as e:
             if attempt < max_retries - 1:
                 # print("No keyword. Rephrasing '{}' ...".format(kw))
                 kw = ask_to_rephrase(kw, objective)

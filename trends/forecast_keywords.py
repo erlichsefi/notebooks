@@ -22,20 +22,22 @@ def lookup_keyword_trend(
             )
 
             figures.append(fig)
-            foreca.append({**term, **forecast_response})
+            foreca.append(
+                          {**term, 
+                           **forecast_response}
+                           )
             logging.info(f" keeping {search_term}")
         except Exception as e:
             logging.info(f" dropping {search_term} becuase {e}")
 
+    # formating response
     formated_search_results = list()
     final_figures = dict()
     for f, fig in zip(foreca, figures):
         if f["execution_status"]:
             result = {}
             for k in f.keys():
-                if not isinstance(f[k], str) and not isinstance(f[k], bool):
-                    result[k] = float(f[k])
-                elif k not in ["execution_status"]:
+                if k not in ["execution_status"]:
                     result[k] = f[k]
 
             formated_search_results.append(result)
@@ -49,6 +51,7 @@ def lookup_keyword_trend(
 
 if __name__ == "__main__":
     from io import StringIO
+    import datetime
 
     # CSV String with out headers
     csvString = """search_term,change_in_search_expectations,change_in_search_explanation
@@ -60,14 +63,14 @@ if __name__ == "__main__":
     csvStringIO = StringIO(csvString)
     forecast_terms = pd.read_csv(csvStringIO, sep=",")
 
-
     figures, data = lookup_keyword_trend(
         assumption="prices will increase",
-        in_question_start="27/08/2022",
-        in_question_end="27/08/2024",
+        in_question_start=datetime.datetime(2020,8,27),
+        in_question_end=datetime.datetime(2023,8,27),
         country="",
         forecast_terms=forecast_terms
     )
 
+    data.to_csv("terms_forecast.csv")
     for term,fig in figures.items():
-        fig.show()
+        fig.savefig(f"plot_{term}.png")

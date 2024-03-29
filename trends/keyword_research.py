@@ -107,7 +107,10 @@ def find_keyword_in_google(today, topic, assumption, language, num_of_keyword_to
         )
         all_search_terms.append(search_terms)
 
-    context = f"Here search terms that was extracted by an LLM given a context from Google: {pd.concat(all_search_terms).to_dict('records')}"
+    context = f"""
+    Here search terms that was extracted by an LLM given a context from Google: 
+    {pd.concat(all_search_terms).to_dict('records')}
+    """
 
     # Log the context
     logging.info(f'Context: {context}')
