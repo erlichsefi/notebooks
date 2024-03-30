@@ -84,18 +84,25 @@ def search_keywords_in_google(
     result = call_open_ai(prompt)
     #
     result = json.loads(result)
-    search_results = list()
-
+    
+    webpage_links = dict()
     for query in result["google_search_terms"][:num_of_search_query_to_generate]:
         logging.info(f"Searching Google for: {query}")
-        responses = google_search_results(
+
+        webpage_links[query] = google_search_results(
             query, num_results=num_results_per_search_query
         )
-        for response in responses:
-            logging.info(f"Scraping Result: {response}")
-            body = selenium_get(response["link"])
-            search_results.append(body)
-    return search_results
+
+    # Scrapr
+    for search_term in webpage_links:
+        logging.info(f"Scraping Result for : {search_term}")
+        for site in webpage_links[search_term]:
+            site['body'] = selenium_get(site['link'])
+
+    with open("search_queries.json","w") as file:
+        json.dump(webpage_links,file)
+
+    return webpage_links
 
 
 def find_keyword_in_google(
@@ -120,27 +127,31 @@ def find_keyword_in_google(
     )
 
     all_search_terms = list()
-    for search_result in search_results:
-        context = f"""
-            Here is a context of a webpage that contains relevant information.
-            if the website blocked our access, provide an empty response.           
-            {search_result}
-            """
-        search_terms = find_keyword(
-            today,
-            assumption,
-            language,
-            num_of_terms=num_of_keyword_to_create,
-            context=context,
-        )
-        all_search_terms.append(search_terms)
+    for google_searched_terms in search_results.keys():
+
+        for web_hit in search_results[google_searched_terms]:
+            context = f"""
+                Here is a context of a webpage that contains relevant information,
+                You were searching it to learn '{google_searched_terms}'         
+                {web_hit}
+                if the website blocked our access, provide an empty response.  
+                """
+            search_terms = find_keyword(
+                today,
+                assumption,
+                language,
+                num_of_terms=num_of_keyword_to_create,
+                context=context,
+            )
+            all_search_terms.append(search_terms)
 
     all_search_terms = pd.concat(all_search_terms)
     all_search_terms.to_csv("all_terms_found.csv")
 
     context = f"""
     Here search terms that was extracted by an LLM given a context from Google: 
-    {all_search_terms.to_dict()}
+    {all_search_terms.to_csv(index=False)}
+    Select the most relevent for the assumption you are researching.
     """
 
     # Log the context
@@ -156,8 +167,8 @@ def find_keyword_in_google(
 
 
 if __name__ == "__main__":
-    num_of_keyword_to_create = 30
-    num_of_search_query_to_generate = 10
+    num_of_keyword_to_create = 2
+    num_of_search_query_to_generate = 1
     num_results_per_search_query = 1
     response = find_keyword_in_google(
         today="27/08/2024",
