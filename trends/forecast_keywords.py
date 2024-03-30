@@ -3,13 +3,17 @@ import pandas as pd
 import logging
 import sys
 
-logging.basicConfig(stream=sys.stdout, level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    stream=sys.stdout,
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+)
+
 
 def lookup_keyword_trend(
     assumption, in_question_start, in_question_end, country, forecast_terms
 ):
     logging.info("Looking up Trends")
-    
 
     foreca = list()
     figures = list()
@@ -22,10 +26,7 @@ def lookup_keyword_trend(
             )
 
             figures.append(fig)
-            foreca.append(
-                          {**term, 
-                           **forecast_response}
-                           )
+            foreca.append({**term, **forecast_response})
             logging.info(f" keeping {search_term}")
         except Exception as e:
             logging.info(f" dropping {search_term} becuase {e}")
@@ -65,12 +66,12 @@ if __name__ == "__main__":
 
     figures, data = lookup_keyword_trend(
         assumption="prices will increase",
-        in_question_start=datetime.datetime(2020,8,27),
-        in_question_end=datetime.datetime(2023,8,27),
+        in_question_start=datetime.datetime(2020, 8, 27),
+        in_question_end=datetime.datetime(2023, 8, 27),
         country="",
-        forecast_terms=forecast_terms
+        forecast_terms=forecast_terms,
     )
 
     data.to_csv("terms_forecast.csv")
-    for term,fig in figures.items():
+    for term, fig in figures.items():
         fig.savefig(f"plot_{term}.png")

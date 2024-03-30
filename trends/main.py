@@ -16,7 +16,6 @@ def pipeline(
     num_of_terms,
     minimum_trends,
 ):
-
     forecast_terms = find_keyword(
         today, assumption, language, num_of_terms=num_of_terms
     )
@@ -29,7 +28,7 @@ def pipeline(
 
 
 if __name__ == "__main__":
-    #load_dotenv()
+    # load_dotenv()
     assert os.getenv("OPENAI_API_KEY") is not None
 
     assumption = "housing pricing in israel will keep decreaseing"

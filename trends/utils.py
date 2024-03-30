@@ -1,5 +1,6 @@
 import json
 
+
 def forecast(interest_over_time_df, kw, number_of_dates_to_comapre):
     import pandas as pd
     from prophet import Prophet
@@ -32,8 +33,9 @@ def forecast(interest_over_time_df, kw, number_of_dates_to_comapre):
 
     # Create a dataframe for future dates you want to forecast
     future_dates = model.make_future_dataframe(
-        periods=number_of_dates_to_comapre + 4, freq="W",
-        #include_history=False
+        periods=number_of_dates_to_comapre + 4,
+        freq="W",
+        # include_history=False
     )  # Forecasting for 365 days
 
     # Perform the forecast
@@ -43,9 +45,8 @@ def forecast(interest_over_time_df, kw, number_of_dates_to_comapre):
     fig = model.plot(forecast)
     add_changepoints_to_plot(fig.gca(), model, forecast)
 
-    return (
-        fig,        forecast
-    )
+    return (fig, forecast)
+
 
 def get_filename(segment_params):
     file_name_parts = []
@@ -54,11 +55,11 @@ def get_filename(segment_params):
 
     return "_".join(file_name_parts) + "_data.csv"
 
+
 def get_trend_data(kw, date_start, date_end, country, number_of_dates_to_comapre):
     from pytrends.request import TrendReq
 
-    segment_params = {"geo":country}
-
+    segment_params = {"geo": country}
 
     pytrend = TrendReq(**segment_params)
 
@@ -70,7 +71,7 @@ def get_trend_data(kw, date_start, date_end, country, number_of_dates_to_comapre
     interest_over_time_df = pytrend.interest_over_time()
     if interest_over_time_df.shape[0] == 0:
         raise ValueError("trend api, return no data.")
-    
+
     # Remove partial
     if interest_over_time_df.iloc[-1].isPartial:
         interest_over_time_df = interest_over_time_df.iloc[:-1]
@@ -95,7 +96,10 @@ def get_trend_data_with_retry(
             return get_trend_data(
                 kw, date_start, date_end, country, number_of_dates_to_comapre
             )
-        except (pytrends.exceptions.TooManyRequestsError,pytrends.exceptions.ResponseError):
+        except (
+            pytrends.exceptions.TooManyRequestsError,
+            pytrends.exceptions.ResponseError,
+        ):
             if attempt < max_retries - 1:
                 # print("Rate limit exceeded. Retrying in {} seconds...".format(retry_delay))
                 time.sleep(retry_delay)
@@ -109,6 +113,7 @@ def get_trend_and_forecast(
     kw, date_start, date_end, country, number_of_dates_to_comapre=1
 ):
     import os
+
     interest_over_time_df, interest_over_time_df_lastest = get_trend_data_with_retry(
         kw, date_start, date_end, country, number_of_dates_to_comapre
     )
@@ -131,35 +136,41 @@ def get_trend_and_forecast(
         }
     }
     """
-    vision_response = call_open_ai_vision(prompt,"temp.png")
+    vision_response = call_open_ai_vision(prompt, "temp.png")
     os.remove("temp.png")
 
-            
-    
-    forecast_values = forecast_result[forecast_result.ds.isin(interest_over_time_df_lastest.index.values)][["trend", "trend_lower", "yhat_upper", "yhat", "yhat_lower", "yhat_upper"]].iloc[0].to_dict()
+    forecast_values = (
+        forecast_result[
+            forecast_result.ds.isin(interest_over_time_df_lastest.index.values)
+        ][["trend", "trend_lower", "yhat_upper", "yhat", "yhat_lower", "yhat_upper"]]
+        .iloc[0]
+        .to_dict()
+    )
 
     return fig, {
         "execution_status": True,
-        "llm_vision_insight":json.loads(vision_response.replace("```json","").replace("```","")),
-        "forecasting_algorithm":forecast_values,
+        "llm_vision_insight": json.loads(
+            vision_response.replace("```json", "").replace("```", "")
+        ),
+        "forecasting_algorithm": forecast_values,
         "actual": interest_over_time_df_lastest[kw].values[0],
     }
 
 
-def call_open_ai(prompt):
+def call_open_ai(prompt, model="gpt-3.5-turbo"):
     from openai import OpenAI
 
     client = OpenAI()
 
     stream = client.chat.completions.create(
-        model="gpt-3.5-turbo",
+        model=model,
         messages=[{"role": "user", "content": prompt}],
         stream=False,
     )
     return stream.choices[0].message.content
 
 
-def call_open_ai_vision(prompt,image_path):
+def call_open_ai_vision(prompt, image_path):
     import base64
     import requests
     import os
@@ -167,40 +178,38 @@ def call_open_ai_vision(prompt,image_path):
     # Function to encode the image
     def encode_image(image_path):
         with open(image_path, "rb") as image_file:
-            return base64.b64encode(image_file.read()).decode('utf-8')
+            return base64.b64encode(image_file.read()).decode("utf-8")
 
     # Getting the base64 string
     base64_image = encode_image(image_path)
 
     headers = {
-    "Content-Type": "application/json",
-    "Authorization": f"Bearer {os.environ['OPENAI_API_KEY']}"
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {os.environ['OPENAI_API_KEY']}",
     }
 
     payload = {
-    "model": "gpt-4-vision-preview",
-    "messages": [
-        {
-        "role": "user",
-        "content": [
+        "model": "gpt-4-vision-preview",
+        "messages": [
             {
-            "type": "text",
-            "text": prompt
-            },
-            {
-            "type": "image_url",
-            "image_url": {
-                "url": f"data:image/jpeg;base64,{base64_image}"
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": prompt},
+                    {
+                        "type": "image_url",
+                        "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"},
+                    },
+                ],
             }
-            }
-        ]
-        }
-    ]
+        ],
     }
 
-    response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload)
+    response = requests.post(
+        "https://api.openai.com/v1/chat/completions", headers=headers, json=payload
+    )
 
-    return response.json()['choices'][0]['message']['content']
+    return response.json()["choices"][0]["message"]["content"]
+
 
 def ask_to_rephrase(kw, objective):
     prompt = f"""
@@ -213,7 +222,6 @@ def ask_to_rephrase(kw, objective):
     }}
 """
     result = call_open_ai(prompt)
-
 
     return json.loads(result)["new_search_term"]
 
@@ -284,14 +292,15 @@ def google_search_results(search_term: str, num_results=None, **kwargs):
     return res.get("items", [])
 
 
-def selenium_get(
-    url,
-    headless=True,
-):
+def selenium_get(url, headless=True, timeout=30):  # Default timeout in seconds
     """start browser"""
     from selenium import webdriver
     from selenium.webdriver.chrome.service import Service
     from webdriver_manager.chrome import ChromeDriverManager
+    from selenium.common.exceptions import TimeoutException
+    from selenium.webdriver.support.ui import WebDriverWait
+    from selenium.webdriver.support import expected_conditions as EC
+    from selenium.webdriver.common.by import By
     from bs4 import BeautifulSoup
 
     executable_path = ChromeDriverManager().install()
@@ -309,13 +318,24 @@ def selenium_get(
     webdriver_client = None
     try:
         webdriver_client = webdriver.Chrome(service=service, options=chrome_options)
+        webdriver_client.set_page_load_timeout(timeout)  # Set the page load timeout
+
+        # Wait until the page is loaded
+        WebDriverWait(webdriver_client, timeout).until(
+            EC.presence_of_element_located((By.TAG_NAME, "body"))
+        )
+
         webdriver_client.get(url)
 
         soup = BeautifulSoup(webdriver_client.page_source, "html.parser")
         return "\n".join(map(lambda x: x.get_text(), soup.find_all("p")))
+    except TimeoutException:
+        print("Page load timed out.")
+        return None
     finally:
         if webdriver_client:
-            webdriver_client.close()
+            webdriver_client.quit()
+            # webdriver_client.close()
 
 
 # selenium_get("https://www.n12.co.il/")
