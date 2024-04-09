@@ -1,4 +1,4 @@
-from trends.utils import call_open_ai
+from TrendsPredict.utils import call_open_ai
 import json
 
 

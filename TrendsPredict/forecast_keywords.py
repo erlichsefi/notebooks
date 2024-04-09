@@ -1,4 +1,4 @@
-from trends.utils import get_trend_and_forecast_with_retry
+from TrendsPredict.utils import get_trend_and_forecast_with_retry
 import pandas as pd
 import logging
 import sys

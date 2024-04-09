@@ -1,7 +1,7 @@
 import streamlit as st
-from trends.keyword_research import find_keyword
-from trends.forecast_keywords import lookup_keyword_trend
-from trends.make_decision import make_decision
+from TrendsPredict.keyword_research import find_keyword
+from TrendsPredict.forecast_keywords import lookup_keyword_trend
+from TrendsPredict.make_decision import make_decision
 from dotenv import load_dotenv
 import os, datetime
 

@@ -1,5 +1,5 @@
 import logging
-from trends.utils import call_open_ai, google_search_results, selenium_get
+from TrendsPredict.utils import call_open_ai, google_search_results, selenium_get
 import json
 import sys
 import pandas as pd
