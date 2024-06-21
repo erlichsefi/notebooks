@@ -1,12 +1,14 @@
 
+Time spend: ~4 hours
+Goal: illustrated and idea and general code quality 
+
+
 
 Idea:
 - we are unsupervised but the task requires a topics.
 - we will need first to divide the data into clusters and only then **manually** label them.
 - comment: if we would like to automate only this part we can use LLM to label that cluster.
 - Once we will have a labeled data we can create a classifier that can label the rest of the data.
-
-
 
 Note:
 - I've could have used LLM to label the data to topics but since i'm already paying with time, i would pay with money.
