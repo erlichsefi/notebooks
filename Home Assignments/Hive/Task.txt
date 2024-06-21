@@ -1,0 +1,26 @@
+Home Assignment: Twitter Topic Modeling
+
+The goal of this assignment is to assess your NLP and engineering skills by applying a topic modeling solution to Hebrew Twitter data.
+
+An important feature of our product is to inform our decision-makers about key topics recently discussed in the media.
+
+Task
+Propose and implement a topic modeling solution to identify emerging topics from the provided Twitter data.
+
+- Data: A CSV file containing approximately 150k tweets is provided. Each tweet record includes an `id` and `text`.
+- Expected Output: The solution should generate a list of coherent and readable topics in Hebrew that can be presented on our platform. For example: ["שחרור החטופים מעזה", "הצהרת בני גנץ", …].
+
+Deliverables
+1. Exploratory Data Analysis (EDA): A Jupyter notebook with an EDA of the raw data.
+2. Topic Modeling Script: An executable Python script that reads the CSV file and returns a list of top topics.
+3. Result Analysis: Another Jupyter notebook analyzing the results and detailing the findings.
+
+Considerations:
+- Technique Explanation: Explain your choice of technique. If the proposed technique relies on certain assumptions or has some caveats, please mention them.
+- Object-Oriented Programming: Utilize OOP principles as much as possible.
+- Language Processing: Highlight any challenges or specific considerations related to processing Hebrew text.
+
+Submission
+- Submit using a GitHub repository with the source code and notebooks.
+
+We do not expect a high-accuracy model but rather an assignment that demonstrates your knowledge, understanding, and creativity. We look forward to seeing how you approach the problem and the innovative solutions you propose.
